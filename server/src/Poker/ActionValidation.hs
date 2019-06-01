@@ -21,6 +21,8 @@ import Data.List
 import Data.Maybe
 import Data.Monoid
 import Data.Text (Text)
+import Data.Vector (Vector)
+import qualified Data.Vector as V
 
 import Poker.Game.Blinds
 import Poker.Game.Game (doesPlayerHaveToAct, getWinners)
@@ -29,7 +31,7 @@ import Poker.Game.Utils
 import Poker.Types
 
 -- TODO remove sitdowm from playerMoves and then
--- can use  checkPlayerSatAtTable on validateAction
+-- can use checkPlayerSatAtTable on validateAction
 validateAction :: Game -> PlayerName -> PlayerAction -> Either GameErr ()
 validateAction game@Game {..} playerName =
   \case
@@ -75,7 +77,7 @@ canPostBlind game@Game {..} pName blind
       NoBlind -> Left $ InvalidMove pName CannotPostNoBlind
   where
     chipCount = _chips $ fromJust $ getGamePlayer game pName
-    activePlayersCount = length $ getActivePlayers _players
+    activePlayersCount = V.length $ unPlayers $ getActivePlayers _players
     notEnoughChipsErr = Left $ InvalidMove pName NotEnoughChipsForAction
 
 -- | The first player to post their blinds in the predeal stage  can do it from any 
@@ -87,7 +89,7 @@ isPlayerActingOutOfTurn game@Game {..} playerName
   | _street == PreDeal && not haveBetsBeenMade && numberOfPlayersSatIn < 2 =
     Right () -- first predeal blind bet can be done from any position
   | otherwise =
-    case playerName `elemIndex` gamePlayerNames of
+    case playerName `V.elemIndex` gamePlayerNames of
       Nothing -> Left $ NotAtTable playerName
       Just pos ->
         if doesPlayerHaveToAct playerName game
@@ -95,12 +97,13 @@ isPlayerActingOutOfTurn game@Game {..} playerName
           else Left $
                InvalidMove playerName $
                OutOfTurn $
-               CurrentPlayerToActErr $ gamePlayerNames !! _currentPosToAct
+               CurrentPlayerToActErr $ gamePlayerNames V.! _currentPosToAct
   where
-    haveBetsBeenMade = sum ((\Player {..} -> _bet) <$> _players) == 0
+    plyrs = unPlayers _players
+    haveBetsBeenMade = V.sum ((\Player {..} -> _bet) <$> plyrs) == 0
     gamePlayerNames = getGamePlayerNames game
     numberOfPlayersSatIn =
-      length $ filter (\Player {..} -> _playerState == In) _players
+      V.length $ V.filter (\Player {..} -> _playerState == In) plyrs
 
 checkPlayerSatAtTable :: Game -> PlayerName -> Either GameErr ()
 checkPlayerSatAtTable game@Game {..} pName
@@ -157,7 +160,7 @@ canCheck pName Game {..}
   | otherwise = Right ()
   where
     Player {..} =
-      fromJust $ find (\Player {..} -> _playerName == pName) _players
+      fromJust $ V.find (\Player {..} -> _playerName == pName) (unPlayers _players)
 
 canFold :: PlayerName -> Game -> Either GameErr ()
 canFold pName Game {..}
@@ -185,7 +188,7 @@ canSit player@Player {..} game@Game {..}
     Left $ AlreadySatAtTable _playerName
   | _chips < _minBuyInChips = Left $ NotEnoughChips _playerName
   | _chips > _maxBuyInChips = Left $ OverMaxChipsBuyIn _playerName
-  | length _players < _maxPlayers = Right ()
+  | V.length (unPlayers _players) < _maxPlayers = Right ()
   | otherwise = Left $ CannotSitAtFullTable _playerName
 
 canSitOut :: PlayerName -> Game -> Either GameErr ()

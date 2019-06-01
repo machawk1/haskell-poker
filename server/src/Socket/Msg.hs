@@ -25,6 +25,8 @@ import Control.Monad.Reader
 import Control.Monad.STM
 import Control.Monad.State.Lazy
 
+import Data.Vector (Vector)
+import qualified Data.Vector as V
 import Data.Either
 import Data.Foldable
 import Data.Functor
@@ -202,8 +204,8 @@ progressGame connString serverStateTVar tableName game@Game {..} = do
   when
     (_street == Showdown ||
      _street == PreDeal && haveAllPlayersActed game ||
-     ((length $ getActivePlayers _players) < 2 && haveAllPlayersActed game) ||
-     (haveAllPlayersActed game && (length $ getActivePlayers _players) >= 2)) $ do
+     ((V.length $ unPlayers $ getActivePlayers _players) < 2 && haveAllPlayersActed game) ||
+     (haveAllPlayersActed game && (V.length $ unPlayers $ getActivePlayers _players) >= 2)) $ do
     (errE, progressedGame) <- runStateT nextStage game
    -- pPrint "PROGRESED GAME"
    -- pPrint progressedGame
@@ -334,9 +336,9 @@ leaveSeatHandler leaveSeatMove@(LeaveSeat tableName) = do
             Left gameErr -> throwError $ GameErr gameErr
             Right () -> do
               let maybePlayer =
-                    find
+                    V.find
                       (\Player {..} -> unUsername username == _playerName)
-                      (_players game)
+                      (unPlayers $ _players game)
               case maybePlayer of
                 Nothing -> throwError $ NotSatInGame tableName
                 Just Player {_chips = chipsInPlay, ..} -> do

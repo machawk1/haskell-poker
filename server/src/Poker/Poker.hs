@@ -19,6 +19,9 @@ import Data.Maybe
 import Data.Monoid
 import Data.Text (Text)
 
+import Data.Vector (Vector)
+import qualified Data.Vector as V
+
 import Poker.ActionValidation
 import Poker.Game.Actions
 import Poker.Game.Blinds
@@ -117,12 +120,12 @@ progressGame game@Game {..}
     return $ progressToShowdown game
   | otherwise = return game
   where
-    numberPlayersSatIn = length $ getActivePlayers _players
+    numberPlayersSatIn = V.length $ unPlayers $ getActivePlayers _players
 
 initialGameState :: Deck -> Game
 initialGameState shuffledDeck =
   Game
-    { _players = []
+    { _players = Players V.empty
     , _waitlist = []
     , _minBuyInChips = 1500
     , _maxBuyInChips = 3000

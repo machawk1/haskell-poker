@@ -5,7 +5,7 @@ Start dev DB
 
 Start server
 
-`dbConnStr='host=0.0.0.0 port=5432 user=postgres dbname=poker2 password=postgres' secret="secret" stack run`
+`cd server && dbConnStr='host=0.0.0.0 port=5432 user=postgres dbname=poker2 password=postgres' secret="secret" stack run`
 
 run local server to serve static assets (this should be incorporated into servant server)
 ``cd client/static && static-server`

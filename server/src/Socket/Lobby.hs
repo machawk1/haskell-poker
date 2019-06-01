@@ -26,6 +26,8 @@ import Socket.Clients
 import Socket.Types
 import Socket.Utils
 import Types
+import Data.Vector (Vector)
+import qualified Data.Vector as V
 
 initialLobby :: IO Lobby
 initialLobby = do
@@ -47,7 +49,7 @@ initialLobby = do
 
 joinGame :: Username -> Int -> Game -> Game
 joinGame (Username username) chips Game {..} =
-  Game {_players = _players <> [player], ..}
+  Game {_players = Players $ V.cons player (unPlayers _players), ..}
   where
     player = initPlayer username chips
 
@@ -61,7 +63,7 @@ updateTable tableName newTable (Lobby lobby) =
 
 -- to do - return an either as there are multiple errs for why plyr cant join game ie no chips
 canJoinGame :: Game -> Bool
-canJoinGame Game {..} = length _players < _maxPlayers
+canJoinGame Game {..} = V.length (unPlayers _players) < _maxPlayers
 
 updateTableGame :: TableName -> Game -> Lobby -> Lobby
 updateTableGame tableName newGame (Lobby lobby) =
@@ -73,7 +75,7 @@ summariseGame :: TableName -> Table -> TableSummary
 summariseGame tableName Table {game = Game {..}, ..} =
   TableSummary
     { _tableName = tableName
-    , _playerCount = length _players
+    , _playerCount = V.length $ unPlayers _players
     , _waitlistCount = length _waitlist
     , ..
     }

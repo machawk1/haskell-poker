@@ -14,6 +14,8 @@ import Data.Char (toLower)
 import Data.List
 import Data.Maybe
 import Data.Monoid
+import Data.Vector (Vector)
+import qualified Data.Vector as V
 
 import Poker.ActionValidation
 import Poker.Game.Blinds
@@ -56,14 +58,15 @@ postBlind blind pName game@Game {..} =
   (pot +~ blindValue) .
   (currentPosToAct .~ nextRequiredBlindPos) . (maxBet .~ newMaxBet)
   where
-    newPlayers =
+    plyrs = unPlayers _players
+    newPlayers = Players $
       (\p@Player {..} ->
          if _playerName == pName
            then (markInForHand . markActed . placeBet blindValue) p
            else p) <$>
-      _players
-    isFirstBlind = sum ((\Player {..} -> _bet) <$> _players) == 0
-    gamePlayerNames = (\Player {..} -> _playerName) <$> _players
+      (unPlayers _players)
+    isFirstBlind = sum ((\Player {..} -> _bet) <$> plyrs) == 0
+    gamePlayerNames = (\Player {..} -> _playerName) <$> plyrs
     blindValue =
       if blind == Small
         then _smallBlind
@@ -73,7 +76,7 @@ postBlind blind pName game@Game {..} =
         then blindValue
         else _maxBet
     positionOfBlindPoster =
-      fromJust $ findIndex ((== pName) . (^. playerName)) _players
+      fromJust $ V.findIndex ((== pName) . (^. playerName)) plyrs
     nextRequiredBlindPos = getPosNextBlind positionOfBlindPoster game
 
 makeBet :: Int -> PlayerName -> Game -> Game
@@ -81,24 +84,24 @@ makeBet amount pName game@Game {..} =
   updateMaxBet amount game &
   (players .~ newPlayers) . (currentPosToAct .~ nextPosToAct) . (pot +~ amount)
   where
-    newPlayers =
+    newPlayers = Players $
       (\p@Player {..} ->
          if _playerName == pName
            then (markActed . placeBet amount) p
            else p) <$>
-      _players
+      (unPlayers _players)
     nextPosToAct = incPosToAct _currentPosToAct game
 
 foldCards :: PlayerName -> Game -> Game
 foldCards pName game@Game {..} =
   game & (players .~ newPlayers) . (currentPosToAct .~ nextPosToAct)
   where
-    newPlayers =
+    newPlayers = Players $
       (\p@Player {..} ->
          if _playerName == pName
            then (markActed . (playerState .~ Folded)) p
            else p) <$>
-      _players
+      (unPlayers _players)
     nextPosToAct = incPosToAct _currentPosToAct game
 
 call :: PlayerName -> Game -> Game
@@ -107,31 +110,31 @@ call pName game@Game {..} =
   (players .~ newPlayers) .
   (currentPosToAct .~ nextPosToAct) . (pot +~ callAmount)
   where
-    player = fromJust $ find (\Player {..} -> _playerName == pName) _players --horrible performance use map for players
+    player = fromJust $ find (\Player {..} -> _playerName == pName) (unPlayers _players)
     callAmount =
       let maxBetShortfall = _maxBet - (player ^. bet)
           playerChips = (player ^. chips)
        in if maxBetShortfall > playerChips
             then playerChips
             else maxBetShortfall
-    newPlayers =
+    newPlayers = Players $
       (\p@Player {..} ->
          if _playerName == pName
            then (markActed . placeBet callAmount) p
            else p) <$>
-      _players
+      (unPlayers _players)
     nextPosToAct = incPosToAct _currentPosToAct game
 
 check :: PlayerName -> Game -> Game
 check pName game@Game {..} =
   game & (players .~ newPlayers) . (currentPosToAct .~ nextPosToAct)
   where
-    newPlayers =
+    newPlayers = Players $
       (\p@Player {..} ->
          if _playerName == pName
            then markActed p
            else p) <$>
-      _players
+      (unPlayers _players)
     nextPosToAct = incPosToAct _currentPosToAct game
 
 -- Sets state of a given player to None (sat-out)
@@ -139,26 +142,26 @@ check pName game@Game {..} =
 sitOut :: PlayerName -> Game -> Game
 sitOut plyrName =
   players %~
-  (<$>)
+  Players . (<$>)
     (\p@Player {..} ->
        if _playerName == plyrName
          then Player {_playerState = None, _actedThisTurn = True, ..}
-         else p)
+         else p) . unPlayers
 
 sitIn :: PlayerName -> Game -> Game
 sitIn plyrName =
   players %~
-  (<$>)
+  Players . (<$>)
     (\p@Player {..} ->
        if _playerName == plyrName
          then Player {_playerState = In, _actedThisTurn = False, ..}
-         else p)
+         else p) . unPlayers
 
 seatPlayer :: Player -> Game -> Game
-seatPlayer plyr = players <>~ [plyr]
+seatPlayer plyr Game{..} = Game{ _players = Players $ plyr `V.cons` (unPlayers _players), ..}
 
 joinWaitlist :: Player -> Game -> Game
 joinWaitlist plyr = waitlist %~ (:) (plyr ^. playerName)
 
 leaveSeat :: PlayerName -> Game -> Game
-leaveSeat plyrName = players %~ filter (\Player {..} -> plyrName /= _playerName)
+leaveSeat plyrName = players %~ Players . V.filter (\Player {..} -> plyrName /= _playerName) . unPlayers

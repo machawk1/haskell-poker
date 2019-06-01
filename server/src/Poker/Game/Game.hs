@@ -16,6 +16,8 @@ import Data.List.Split
 import Data.Maybe
 import Data.Monoid
 import Data.Text (Text)
+import Data.Vector (Vector)
+import qualified Data.Vector as V
 
 import Poker.Game.Blinds
 import Poker.Game.Hands
@@ -47,9 +49,9 @@ dealBoardCards n game@Game {..} =
     (boardCards, shuffledDeck) = splitAt n (unDeck _deck)
 
 deal :: Game -> Game
-deal game@Game {..} = Game {_players = dealtPlayers, _deck = remainingDeck, ..}
+deal game@Game {..} = Game {_players = Players $ V.fromList dealtPlayers, _deck = remainingDeck, ..}
   where
-    (remainingDeck, dealtPlayers) = dealToPlayers (_deck) _players
+    (remainingDeck, dealtPlayers) = dealToPlayers _deck (V.toList $ unPlayers _players)
 
 -- Gets the next data constructor of the Street which represents
 -- the name of the next game stage.
@@ -65,7 +67,7 @@ getNextStreet _street = succ _street
 resetPlayers :: Game -> Game
 resetPlayers game@Game {..} = (players .~ newPlayers) game
   where
-    newPlayers = (bet .~ 0) . (actedThisTurn .~ False) <$> _players
+    newPlayers = Players $ (bet .~ 0) . (actedThisTurn .~ False) <$> (unPlayers _players)
 
 -- When there are only two players in game (Heads Up) then the first player
 -- to act PreFlop is the player at the dealer position.
@@ -76,9 +78,9 @@ progressToPreFlop game@Game {..} =
   game &
   (street .~ PreFlop) .
   (currentPosToAct .~ firstPosToAct) .
-  (players %~ (<$>) (actedThisTurn .~ False)) . deal . updatePlayersInHand
+  (players %~ (Players . (<$>) (actedThisTurn .~ False)) . unPlayers) . deal . updatePlayersInHand
   where
-    playerCount = length $ getActivePlayers _players
+    playerCount = V.length $ unPlayers $ getActivePlayers _players
     incAmount = 2
     firstPosToAct =
       if playerCount == 2
@@ -117,10 +119,10 @@ progressToRiver game@Game {..}
 progressToShowdown :: Game -> Game
 progressToShowdown game@Game {..} =
   game &
-  (street .~ Showdown) . (winners .~ winners') . (players .~ awardedPlayers)
+  (street .~ Showdown) . (winners .~ winners') . (players .~ (Players $ V.fromList awardedPlayers))
   where
     winners' = getWinners game
-    awardedPlayers = awardWinners _players _pot winners'
+    awardedPlayers = awardWinners (V.toList $ unPlayers _players) _pot winners'
 
 -- need to give players the chips they are due and split pot if necessary
 -- if only one active player then this is a result of everyone else folding 
@@ -143,7 +145,7 @@ awardWinners _players pot' =
           _players
     SinglePlayerShowdown _ ->
       (\p@Player {..} ->
-         if p `elem` getActivePlayers _players
+         if p `elem` _players
            then Player {_chips = _chips + pot', ..}
            else p) <$>
       _players
@@ -156,10 +158,11 @@ isEveryoneAllIn game@Game {..}
   | haveAllPlayersActed game = (numPlayersIn - numPlayersAllIn) <= 1
   | otherwise = False
   where
-    numPlayersIn = length $ getActivePlayers _players
+    plyrs = unPlayers _players
+    numPlayersIn = V.length $ unPlayers $ getActivePlayers _players
     numPlayersAllIn =
-      length $
-      filter (\Player {..} -> _playerState == In && _chips == 0) _players
+      V.length $
+      V.filter (\Player {..} -> _playerState == In && _chips == 0) plyrs
 
 -- TODO move players from waitlist to players list
 -- TODO need to send msg to players on waitlist when a seat frees up to inform them 
@@ -186,11 +189,12 @@ getNextHand Game {..} shuffledDeck =
     }
   where
     incAmount = 1
-    newDealer = modInc incAmount _dealer (length (getPlayersSatIn _players) - 1)
-    freeSeatsNo = _maxPlayers - length _players
-    newPlayers = resetPlayerCardsAndBets <$> _players
+    plyrs = unPlayers _players
+    newDealer = modInc incAmount _dealer ((V.length $ unPlayers $ getPlayersSatIn _players) - 1)
+    freeSeatsNo = _maxPlayers - V.length plyrs
+    newPlayers = Players $ resetPlayerCardsAndBets <$> plyrs
     newWaitlist = drop freeSeatsNo _waitlist
-    nextPlayerToAct = modInc incAmount newDealer (length newPlayers - 1)
+    nextPlayerToAct = modInc incAmount newDealer ((V.length $unPlayers newPlayers) - 1)
 
 -- | If all players have acted and their bets are equal 
 -- to the max bet then we can move to the next stage
@@ -202,11 +206,11 @@ haveAllPlayersActed game@Game {..}
   where
     activePlayers = getActivePlayers _players
     awaitingPlayerAction =
-      any
+      V.any
         (\Player {..} ->
            not _actedThisTurn ||
            (_playerState == In && (_bet < _maxBet && _chips /= 0)))
-        activePlayers
+        (unPlayers activePlayers)
 
 -- If all players have folded apart from a remaining player then the mucked boolean 
 -- inside the player value will determine if we show the remaining players hand to the 
@@ -217,10 +221,11 @@ getWinners :: Game -> Winners
 getWinners game@Game {..} =
   if allButOneFolded game
     then SinglePlayerShowdown $
-         head $
+         V.head $
          flip (^.) playerName <$>
-         filter (\Player {..} -> _playerState == In) _players
-    else MultiPlayerShowdown $ maximums $ getHandRankings _players _board
+         V.filter (\Player {..} -> _playerState == In) plyrs
+    else MultiPlayerShowdown $ maximums $ getHandRankings (V.toList (plyrs)) _board
+  where plyrs = unPlayers _players
 
 -- Return the best hands and the active players (playerState of In) who hold
 -- those hands.
@@ -264,9 +269,9 @@ resetPlayerCardsAndBets Player {..} =
 
 -- The game should go straight to showdown if all but one players is In hand
 allButOneFolded :: Game -> Bool
-allButOneFolded game@Game {..} = _street /= PreDeal && length playersInHand <= 1
+allButOneFolded game@Game {..} = _street /= PreDeal && V.length playersInHand <= 1
   where
-    playersInHand = filter ((== In) . (^. playerState)) _players
+    playersInHand = V.filter ((== In) . (^. playerState)) (unPlayers _players)
 
 initPlayer :: Text -> Int -> Player
 initPlayer playerName chips =
@@ -313,7 +318,8 @@ doesPlayerHaveToAct playerName game@Game {..}
     (blindRequiredByPlayer game playerName /= NoBlind)
   | otherwise = _playerName currentPlyrToAct == playerName
   where
-    currentPlyrToAct = fromJust $ _players Safe.!! _currentPosToAct -- eh?! fromjust safe pointless
+    currentPlyrToAct = plyrs V.! _currentPosToAct -- eh?! fromjust safe pointless
     currentPlayerNameToAct = _playerName currentPlyrToAct
     activePlayerCount =
-      length $ filter (\Player {..} -> _playerState == In) _players
+      V.length $ V.filter (\Player {..} -> _playerState == In) plyrs
+    plyrs = unPlayers _players

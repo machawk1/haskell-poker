@@ -23,6 +23,10 @@ import Control.Monad
 import Data.Array.IO
 import System.Random
 
+import Data.Vector (Vector)
+import qualified Data.Vector as V
+
+
 -- | A standard deck of cards.
 initialDeck :: Deck
 initialDeck = Deck $ Card <$> [minBound ..] <*> [minBound ..]
@@ -67,43 +71,43 @@ modDec num modulo
 -- as there can be no future participation in this hand 
 -- whereas sat in means that the player has at the very least had some historical participation
 -- in the current hand
-getActivePlayers :: [Player] -> [Player]
-getActivePlayers = filter (\Player {..} -> _playerState == In)
+getActivePlayers :: Players -> Players
+getActivePlayers (Players ps) = Players $ V.filter (\Player {..} -> _playerState == In) ps
 
 -- get all players who are not currently sat out
-getPlayersSatIn :: [Player] -> [Player]
-getPlayersSatIn = filter ((/= None) . (^. playerState))
+getPlayersSatIn :: Players -> Players
+getPlayersSatIn (Players ps) = Players $ V.filter ((/= None) . (^. playerState)) ps
 
 -- player position is the order of a given player in the set of all players with a 
 -- playerState of In or in other words the players that are both sat at the table and active 
 -- return Nothing if the given playerName is not sat at table
-getPlayerPosition :: [PlayerName] -> PlayerName -> Maybe Int
-getPlayerPosition playersSatIn playerName = playerName `elemIndex` playersSatIn
+getPlayerPosition :: Vector PlayerName -> PlayerName -> Maybe Int
+getPlayerPosition playersSatIn playerName = playerName `V.elemIndex` playersSatIn
 
 getGameStage :: Game -> Street
 getGameStage game = game ^. street
 
-getGamePlayers :: Game -> [Player]
+getGamePlayers :: Game -> Players
 getGamePlayers game = game ^. players
 
 getGamePlayer :: Game -> PlayerName -> Maybe Player
 getGamePlayer game playerName =
-  find (\Player {..} -> _playerName == playerName) $ _players game
+  V.find (\Player {..} -> _playerName == playerName) $ unPlayers $ _players game
 
 getGamePlayerState :: Game -> PlayerName -> Maybe PlayerState
 getGamePlayerState game playerName = do
   Player {..} <- getGamePlayer game playerName
   return _playerState
 
-getGamePlayerNames :: Game -> [Text]
-getGamePlayerNames game = _playerName <$> _players game
+getGamePlayerNames :: Game -> Vector Text
+getGamePlayerNames game = _playerName <$> (unPlayers $ _players game)
 
-getPlayerChipCounts :: Game -> [(Text, Int)]
+getPlayerChipCounts :: Game -> Vector (Text, Int)
 getPlayerChipCounts Game {..} =
-  (\Player {..} -> (_playerName, _chips)) <$> _players
+  (\Player {..} -> (_playerName, _chips)) <$> (unPlayers _players)
 
-getPlayerNames :: [Player] -> [Text]
-getPlayerNames players = (^. playerName) <$> players
+getPlayerNames :: Players -> Vector Text
+getPlayerNames players = (^. playerName) <$> (unPlayers players)
 
 maximums :: Ord a => [(a, b)] -> [(a, b)]
 maximums [] = []
@@ -120,12 +124,12 @@ maximums (x:xs) = foldl f [x] xs
 incPosToAct :: Int -> Game -> Int
 incPosToAct currIx Game {..} = nextIx
   where
-    iplayers = zip [0 ..] _players
+    iplayers = V.zip (V.fromList [0 ..]) (unPlayers _players)
     iplayers' =
-      let (a, b) = splitAt currIx iplayers
+      let (a, b) = V.splitAt currIx iplayers
        in b <> a
     (nextIx, nextPlayer) =
-      fromJust $ find (\(_, p) -> _playerState p == In) (tail iplayers')
+      fromJust $ V.find (\(_, p) -> _playerState p == In) (V.tail iplayers')
 
 isMultiPlayerShowdown :: Winners -> Bool
 isMultiPlayerShowdown (MultiPlayerShowdown _) = True

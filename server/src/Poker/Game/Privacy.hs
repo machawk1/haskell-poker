@@ -48,7 +48,7 @@ excludeAllPlayerCards = excludePrivateCards Nothing
 -- is set to In (active and) are public and therefore not removed.
 excludePrivateCards :: Maybe PlayerName -> Game -> Game
 excludePrivateCards maybePlayerName game =
-  game & (players %~ (<$>) pocketCardsPrivacyModifier) . (deck .~ Deck [])
+  game & (players %~ Players . ((<$>) pocketCardsPrivacyModifier) . unPlayers) . (deck .~ Deck [])
   where
     everyoneAllIn = isEveryoneAllIn game
     multiplayerShowdown =

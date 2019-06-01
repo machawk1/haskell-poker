@@ -25,6 +25,9 @@ import Database.Redis (Redis, connect, runRedis, setex)
 import qualified Database.Redis as Redis
 import Poker.Types
 
+import Data.Vector (Vector)
+import qualified Data.Vector as V
+
 import Schema
 import Types
 
@@ -166,7 +169,7 @@ dbInsertGame connString Game {..} tableId = do
       GameEntity
         { gameEntityTableID = tableId
         , gameEntityCreatedAt = timestamp
-        , gameEntityPlayers = _players
+        , gameEntityPlayers = V.toList $ unPlayers _players
         , gameEntityMinBuyInChips = _minBuyInChips
         , gameEntityMaxBuyInChips = _maxBuyInChips
         , gameEntityMaxPlayers = _maxPlayers

@@ -14,6 +14,7 @@ import Data.Aeson.Types
 import Data.Function
 import Data.Monoid
 import Data.Text
+import Data.Vector (Vector)
 import Database.Persist.TH
 import GHC.Generics
 
@@ -154,8 +155,13 @@ newtype Deck =
 unDeck :: Deck -> [Card]
 unDeck (Deck cards) = cards
 
+newtype Players = Players (Vector Player) deriving (Show, Eq, Read, Ord, Generic, ToJSON, FromJSON)
+
+unPlayers :: Players -> Vector Player
+unPlayers (Players p) = p
+
 data Game = Game
-  { _players :: [Player]
+  { _players :: Players
   , _minBuyInChips :: Int
   , _maxBuyInChips :: Int
   , _maxPlayers :: Int

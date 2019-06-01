@@ -15,6 +15,9 @@ import Data.Monoid
 import Data.Text (Text)
 import Text.Read (readMaybe)
 
+import Data.Vector (Vector)
+import qualified Data.Vector as V
+
 import Poker.Game.Utils
 import Poker.Types
 import Prelude
@@ -27,40 +30,40 @@ import Prelude
 getPosNextBlind :: Int -> Game -> Int
 getPosNextBlind currIx game@Game {..} = nextIx
   where
-    iplayers = zip [0 ..] _players
+    iplayers = V.zip (V.fromList [0 ..]) (unPlayers _players)
     iplayers' =
-      let (a, b) = splitAt currIx iplayers
+      let (a, b) = V.splitAt currIx iplayers
        in b <> a
     (nextIx, nextPlayer) =
       fromJust $
       find
         (\(_, p@Player {..}) ->
            blindRequiredByPlayer game _playerName /= NoBlind)
-        (tail iplayers')
+        (V.tail iplayers')
 
 haveRequiredBlindsBeenPosted :: Game -> Bool
 haveRequiredBlindsBeenPosted game@Game {..} =
   all (== True) $
-  zipWith
+  V.zipWith
     (\requiredBlind Player {..} ->
        case requiredBlind of
          NoBlind -> True
          Big -> _committed == _bigBlind
          Small -> _committed == _smallBlind)
     requiredBlinds
-    _players
+    (unPlayers _players)
   where
     requiredBlinds = getRequiredBlinds game
 
-getRequiredBlinds :: Game -> [Blind]
+getRequiredBlinds :: Game -> Vector Blind
 getRequiredBlinds game@Game {..}
-  | _street /= PreDeal = []
+  | _street /= PreDeal = V.empty
   | otherwise = blindRequiredByPlayer game <$> getPlayerNames _players
 
 -- We use the list of required blinds to calculate if a player has posted 
 -- chips sufficient to be "In" for this hand.
-activatePlayersWhenNoBlindNeeded :: [Blind] -> [Player] -> [Player]
-activatePlayersWhenNoBlindNeeded = zipWith updatePlayer
+activatePlayersWhenNoBlindNeeded :: Vector Blind -> Players -> Players
+activatePlayersWhenNoBlindNeeded blinds (Players plyrs) = Players $ V.zipWith updatePlayer blinds plyrs
   where
     updatePlayer blindReq Player {..} =
       Player
@@ -76,7 +79,7 @@ updatePlayersInHand :: Game -> Game
 updatePlayersInHand game =
   game & (players %~ activatePlayersWhenNoBlindNeeded (getRequiredBlinds game))
 
-getSmallBlindPosition :: [Text] -> Int -> Int
+getSmallBlindPosition :: Vector Text -> Int -> Int
 getSmallBlindPosition playersSatIn dealerPos =
   if length playersSatIn == 2
     then dealerPos
