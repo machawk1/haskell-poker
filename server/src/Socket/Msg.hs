@@ -120,7 +120,6 @@ authenticatedMsgLoop msgHandlerConfig@MsgHandlerConfig {..} =
 -- to avoid halting the progress of the game.
 playerTimeoutLoop :: TableName -> TChan MsgOut -> MsgHandlerConfig -> IO ()
 playerTimeoutLoop tableName channel msgHandlerConfig@MsgHandlerConfig {..} = do
-  msgReaderDup <- atomically $ dupTChan socketReadChan
   dupTableChan <- atomically $ dupTChan channel
   forever $ do
     dupTableChanMsg <- atomically $ readTChan dupTableChan
@@ -128,18 +127,21 @@ playerTimeoutLoop tableName channel msgHandlerConfig@MsgHandlerConfig {..} = do
       (NewGameState tableName newGame) ->
         let playerHasToAct = doesPlayerHaveToAct (unUsername username) newGame
          in when playerHasToAct $
-            awaitTimedPlayerAction socketReadChan newGame tableName username
+            awaitTimedPlayerAction clientConn socketReadChan newGame tableName username
       _ -> return ()
 
 -- We read from a duplicate of the channel which reads msgs from the client socket.
 -- We use a duplicate to listen to the client so as to not consume messages intended for other tables
 awaitValidPlayerAction ::
-     TableName -> Game -> PlayerName -> TChan MsgIn -> STM MsgIn
-awaitValidPlayerAction tableName game playerName dupChan =
-  readTChan dupChan >>= \msg ->
-    if isValidAction game playerName msg
-      then return msg
-      else awaitValidPlayerAction tableName game playerName dupChan
+     TableName -> Game -> PlayerName -> WS.Connection -> IO MsgIn
+awaitValidPlayerAction tableName game playerName conn =  do 
+    msg <- WS.receiveData conn
+    let parsedMsg = parseMsgFromJSON msg
+    case parsedMsg of 
+      Just m -> if isValidAction game playerName m
+                   then return m
+                   else awaitValidPlayerAction tableName game playerName conn
+      _ -> awaitValidPlayerAction tableName game playerName conn
   where
     isValidAction game playerName =
       \case
@@ -152,17 +154,13 @@ awaitValidPlayerAction tableName game playerName dupChan =
 -- The race results in an Either where the Left signals a timeout and a 
 -- Right denotes a valid game action was received from the client in sufficient
 -- time.
-awaitTimedPlayerAction :: TChan MsgIn -> Game -> TableName -> Username -> IO ()
-awaitTimedPlayerAction socketReadChan game tableName (Username playerName) = do
+awaitTimedPlayerAction :: WS.Connection -> TChan MsgIn -> Game -> TableName -> Username -> IO ()
+awaitTimedPlayerAction conn socketReadChan game tableName (Username playerName) = do
   delayTVar <- registerDelay timeoutDuration
-  dupChan <- atomically $ dupTChan socketReadChan
-  validPlayerAction <-
-    async $
-    atomically $ awaitValidPlayerAction tableName game playerName dupChan
+  validPlayerAction <- async $ awaitValidPlayerAction tableName game playerName conn
   timer <- async $ atomically $ readTVar delayTVar >>= check
   msgInOrTimedOut <- waitEitherCancel timer validPlayerAction
-  when (isLeft msgInOrTimedOut) $
-    atomically $ writeTChan socketReadChan (GameMove tableName Timeout)
+  when (isLeft msgInOrTimedOut) $ atomically $ writeTChan socketReadChan (GameMove tableName Timeout)
   where
     timeoutDuration = 6500000
 
