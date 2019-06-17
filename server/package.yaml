@@ -70,6 +70,12 @@ dependencies:
   - servant-options
   - async
   - vector
+  - servant-swagger
+  - servant-swagger-ui
+  - servant-swagger-ui-core
+  - servant-swagger-ui-jensoleg
+  - servant-swagger-ui-redoc
+  - swagger2
 
 library:
   source-dirs: src

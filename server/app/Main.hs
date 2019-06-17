@@ -18,6 +18,7 @@ import Web.JWT (secret)
 import Data.Proxy
 import Types
 
+
 main :: IO ((), ())
 main = do
   dbConnString <- getDBConnStrFromEnv

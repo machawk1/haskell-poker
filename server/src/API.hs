@@ -44,10 +44,24 @@ import Reason
 import Network.Wai.Middleware.Cors
 import Servant.Foreign
 
+import Data.Swagger
+import Servant.Auth.Swagger
+
+import Servant.Swagger
+import Servant.Swagger.UI
+import Servant.Swagger.UI.Core
+import Servant.Swagger.UI.ReDoc
+
+import Control.Lens ((.~), (?~))
 import GHC.TypeLits
 
+
+
+
+-- Swagger docs API is embedded here
 type API auths =
-         (Servant.Auth.Server.Auth auths Username :> ProtectedUsersAPI)
+    SwaggerSchemaUI "swagger-ui" "swagger.json"
+    :<|> (Servant.Auth.Server.Auth auths Username :> ProtectedUsersAPI)
     :<|> UnprotectedUsersAPI
 
 type UnprotectedUsersAPI = 
@@ -106,8 +120,18 @@ serveWithAuth secretKey c r =
     cfg = defaultCookieSettings :. jwtCfg :. EmptyContext
     api = Proxy :: Proxy (API '[JWT]) -- API is a type synonym for our api - type is now concrete
 
+
+swaggerDoc :: Swagger
+swaggerDoc = toSwagger (Proxy :: Proxy (API '[JWT]))
+    & info.title       .~ "Haskell Poker API"
+    & info.version     .~ "2019.0.1"
+    & info.description ?~ "This is an API that tests servant-swagger support"
+
+-- Endpoint for Swagger Docs are embedded here
 server :: JWTSettings -> ConnectionString -> RedisConfig -> Server (API '[JWT])
-server j c r = protectedUsersServer j c r :<|> unprotectedUsersServer j c r
+server j c r = redocSchemaUIServer swaggerDoc
+      :<|> protectedUsersServer j c r
+      :<|> unprotectedUsersServer j c r
 
 unprotectedUsersServer :: JWTSettings -> ConnectionString -> RedisConfig -> Server UnprotectedUsersAPI
 unprotectedUsersServer jwtSettings connString redisConfig =
