@@ -92,6 +92,11 @@
     lodash "^4.2.0"
     to-fast-properties "^2.0.0"
 
+"@glennsl/bs-json@^4.0.0":
+  version "4.0.0"
+  resolved "https://registry.yarnpkg.com/@glennsl/bs-json/-/bs-json-4.0.0.tgz#f057d0d1d84d614e27d8bbb67b64e6b6727f24b2"
+  integrity sha512-nunb6+cZcx7pyooh8i4froogXumOOiFb7rF3bz6E9X7b3Dc+3/HGwpnUjxciFN8eQL4QC+MskzG1tG+Ci1aJxA==
+
 "@mrmlnc/readdir-enhanced@^2.2.1":
   version "2.2.1"
   resolved "https://registry.yarnpkg.com/@mrmlnc/readdir-enhanced/-/readdir-enhanced-2.2.1.tgz#524af240d1a360527b730475ecfa1344aa540dde"
@@ -599,12 +604,12 @@ aws4@^1.6.0:
   version "1.8.0"
   resolved "https://registry.yarnpkg.com/aws4/-/aws4-1.8.0.tgz#f0e003d9ca9e7f59c7a508945d7b2ef9a04a542f"
 
-axios@^0.18.0:
-  version "0.18.0"
-  resolved "https://registry.yarnpkg.com/axios/-/axios-0.18.0.tgz#32d53e4851efdc0a11993b6cd000789d70c05102"
+axios@^0.21.1:
+  version "0.21.1"
+  resolved "https://registry.yarnpkg.com/axios/-/axios-0.21.1.tgz#22563481962f4d6bde9a76d516ef0e5d3c09b2b8"
+  integrity sha512-dKQiRHxGD9PPRIUNIWvZhPTPpl1rf/OxTYKsqKUDjBwYylTvV7SjSHJb9ratfyzM6wCdLCOYLzs73qpg5c4iGA==
   dependencies:
-    follow-redirects "^1.3.0"
-    is-buffer "^1.1.5"
+    follow-redirects "^1.10.0"
 
 axobject-query@^2.0.1:
   version "2.0.1"
@@ -1641,6 +1646,11 @@ bs-abstract@^0.17.0:
   version "0.17.0"
   resolved "https://registry.yarnpkg.com/bs-abstract/-/bs-abstract-0.17.0.tgz#543272bc8c58c01756e113540557b62b510f1664"
   integrity sha512-J1sPz2EZS29Ga0YdOVV8wD7PPKpCxrpEgMKLcehXNseSNxiWgmg4mxmJEhRva/d/d0LpjM4HysBiuCDwZ1FTNQ==
+
+bs-fetch@^0.4.0:
+  version "0.4.0"
+  resolved "https://registry.yarnpkg.com/bs-fetch/-/bs-fetch-0.4.0.tgz#355fd0e3c77d283f6735d43b9daa81aa6e75a365"
+  integrity sha512-hoQ/5kxTeIMRJ2S9IrSx5uVzDcrebXv089E+MUJyOjT2P9ux3bJ7hrIPXBQZiErf6uyL1Q5WkdVv9cEw1Hkpuw==
 
 bs-platform@^5.0.4:
   version "5.0.4"
@@ -3849,11 +3859,10 @@ flush-write-stream@^1.0.0:
     inherits "^2.0.1"
     readable-stream "^2.0.4"
 
-follow-redirects@^1.3.0:
-  version "1.5.2"
-  resolved "https://registry.yarnpkg.com/follow-redirects/-/follow-redirects-1.5.2.tgz#5a9d80e0165957e5ef0c1210678fc5c4acb9fb03"
-  dependencies:
-    debug "^3.1.0"
+follow-redirects@^1.10.0:
+  version "1.14.3"
+  resolved "https://registry.yarnpkg.com/follow-redirects/-/follow-redirects-1.14.3.tgz#6ada78118d8d24caee595595accdc0ac6abd022e"
+  integrity sha512-3MkHxknWMUtb23apkgz/83fDoe+y+qr0TdgacGIA7bew+QLBo3vdgEN2xEsuXNivpFy4CyDhBBZnNZOtalmenw==
 
 fontfaceobserver@2.0.13:
   version "2.0.13"
@@ -6818,7 +6827,7 @@ once@^1.3.0, once@^1.3.1, once@^1.4.0:
 
 onetime@^1.0.0:
   version "1.1.0"
-  resolved "http://registry.npmjs.org/onetime/-/onetime-1.1.0.tgz#a1f7838f8314c516f05ecefcbc4ccfe04b4ed789"
+  resolved "https://registry.npmjs.org/onetime/-/onetime-1.1.0.tgz#a1f7838f8314c516f05ecefcbc4ccfe04b4ed789"
 
 onetime@^2.0.0:
   version "2.0.1"
